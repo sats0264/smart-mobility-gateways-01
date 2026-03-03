@@ -57,7 +57,8 @@ public class SecurityConfig {
                         // User endpoints
                         .pathMatchers("/users/me").hasAnyRole("USER", "ADMIN")
                         .pathMatchers("/users/summary/me").hasAnyRole("USER", "ADMIN")
-                        // matcher exact pour /api/passes/me (et sous-chemins ci-dessous) — autorise aussi ADMIN
+                        // matcher exact pour /api/passes/me (et sous-chemins ci-dessous) — autorise
+                        // aussi ADMIN
                         .pathMatchers("/api/passes/me").hasAnyRole("USER", "ADMIN")
                         .pathMatchers("/api/passes/me/**").hasAnyRole("USER", "ADMIN")
 
@@ -69,6 +70,10 @@ public class SecurityConfig {
                         .pathMatchers("/api/pricing/**").hasAnyRole("USER", "ADMIN")
                         .pathMatchers("/api/payments/**").hasAnyRole("USER", "ADMIN")
                         .pathMatchers("/accounts/**").hasAnyRole("USER", "ADMIN")
+
+                        // Catalog Access: Admin can manage, Users can view
+                        .pathMatchers(HttpMethod.GET, "/api/catalog/**").hasAnyRole("USER", "ADMIN")
+                        .pathMatchers("/api/catalog/**").hasRole("ADMIN")
 
                         // Fallback
                         .anyExchange().authenticated())

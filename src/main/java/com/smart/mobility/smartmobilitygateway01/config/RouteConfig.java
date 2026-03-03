@@ -12,7 +12,8 @@ public class RouteConfig {
         public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
                 return builder.routes()
                                 .route("user-service-route",
-                                                r -> r.path("/users/**", "/api/subscriptions/**", "/api/passes/**")
+                                                r -> r.path("/users/**", "/api/subscriptions/**", "/api/passes/**",
+                                                                "/api/catalog/**")
                                                                 .uri("lb://user-mobility-pass-service"))
                                 .route("trip-management-service-route", r -> r.path("/trips/**")
                                                 .uri("lb://trip-management-service"))
