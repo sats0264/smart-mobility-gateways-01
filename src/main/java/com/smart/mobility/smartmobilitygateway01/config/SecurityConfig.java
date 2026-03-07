@@ -9,7 +9,11 @@ import org.springframework.security.config.annotation.web.reactive.EnableWebFlux
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
+import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
@@ -89,24 +93,24 @@ public class SecurityConfig {
     private String issuerUri;
 
     @Bean
-    public org.springframework.security.oauth2.jwt.ReactiveJwtDecoder jwtDecoder() {
-        org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder jwtDecoder = (org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder) org.springframework.security.oauth2.jwt.ReactiveJwtDecoders
+    public ReactiveJwtDecoder jwtDecoder() {
+        NimbusReactiveJwtDecoder jwtDecoder = ReactiveJwtDecoders
                 .fromIssuerLocation(issuerUri);
 
-        org.springframework.security.oauth2.core.OAuth2TokenValidator<Jwt> withTimestamp = org.springframework.security.oauth2.jwt.JwtValidators
+        OAuth2TokenValidator<Jwt> withTimestamp = JwtValidators
                 .createDefault();
-        org.springframework.security.oauth2.core.OAuth2TokenValidator<Jwt> customIssuerValidator = token -> {
+        OAuth2TokenValidator<Jwt> customIssuerValidator = token -> {
             String iss = token.getClaimAsString("iss");
             if (iss != null && (iss.contains("localhost:8080") || iss.contains("192.168.16.104:8080")
                     || iss.equals(issuerUri))) {
-                return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.success();
+                return OAuth2TokenValidatorResult.success();
             }
-            return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult
-                    .failure(new org.springframework.security.oauth2.core.OAuth2Error("invalid_issuer",
+            return OAuth2TokenValidatorResult
+                    .failure(new OAuth2Error("invalid_issuer",
                             "The iss claim is not valid", null));
         };
 
-        org.springframework.security.oauth2.core.OAuth2TokenValidator<Jwt> validator = new org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator<>(
+        OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
                 withTimestamp, customIssuerValidator);
         jwtDecoder.setJwtValidator(validator);
 
