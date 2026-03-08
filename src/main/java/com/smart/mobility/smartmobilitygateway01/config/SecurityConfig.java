@@ -1,5 +1,6 @@
 package com.smart.mobility.smartmobilitygateway01.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
@@ -28,10 +29,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -43,7 +49,7 @@ public class SecurityConfig {
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
-                .cors(ServerHttpSecurity.CorsSpec::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint(authenticationEntryPoint())
                         .accessDeniedHandler(accessDeniedHandler()))
@@ -89,25 +95,60 @@ public class SecurityConfig {
         return http.build();
     }
 
-    @org.springframework.beans.factory.annotation.Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // Liste complète des origines autorisées (Frontend Admin, Mobile, Keycloak,
+        // etc.)
+        configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "http://localhost:3000",
+                "http://localhost:8080",
+                "http://localhost:8765"));
+
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
+
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization", "Content-Type", "X-Requested-With", "Accept",
+                "Origin", "X-User-Id", "X-User-Email", "X-User-Name",
+                "Access-Control-Request-Method", "Access-Control-Request-Headers"));
+
+        // Exposer les headers pour que le frontend puisse les lire (ex: pagination)
+        configuration.setExposedHeaders(Arrays.asList(
+                "Authorization", "Content-Type", "X-Total-Count", "X-Page-Number"));
+
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
     private String issuerUri;
 
     @Bean
     public ReactiveJwtDecoder jwtDecoder() {
+        // Force localhost:8080 as requested to bypass stale 192.168.1.6 configuration
+        String localIssuer = "http://localhost:8080/realms/smart-mobility";
+
         NimbusReactiveJwtDecoder jwtDecoder = ReactiveJwtDecoders
-                .fromIssuerLocation(issuerUri);
+                .fromIssuerLocation(localIssuer);
 
         OAuth2TokenValidator<Jwt> withTimestamp = JwtValidators
                 .createDefault();
         OAuth2TokenValidator<Jwt> customIssuerValidator = token -> {
             String iss = token.getClaimAsString("iss");
-            if (iss != null && (iss.contains("localhost:8080") || iss.contains("192.168.16.104:8080")
-                    || iss.equals(issuerUri))) {
+            // Only allow localhost
+            if (iss != null && iss.contains("localhost:8080")) {
                 return OAuth2TokenValidatorResult.success();
             }
             return OAuth2TokenValidatorResult
                     .failure(new OAuth2Error("invalid_issuer",
-                            "The iss claim is not valid", null));
+                            "The iss claim is not valid (must be localhost:8080)", null));
         };
 
         OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
