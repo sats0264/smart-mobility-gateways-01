@@ -58,11 +58,10 @@ public class SecurityConfig {
                                                 .pathMatchers("/eureka/**").permitAll()
                                                 .pathMatchers(HttpMethod.POST, "/users/register").permitAll()
 
-//                                                // User Admin endpoints
-//                                                .pathMatchers("/admin/**").hasRole("ADMIN")
-
                                                 // Admin endpoints
                                                 .pathMatchers("/admin/**").hasRole("ADMIN")
+                                                .pathMatchers("/admin/trips/**").hasRole("ADMIN")
+                                                .pathMatchers("/admin/notifications/**").hasRole("ADMIN")
 
                                                 // Specific admin-only endpoint: création de profil (backoffice)
                                                 .pathMatchers(HttpMethod.POST, "/users/profile").hasRole("ADMIN")
@@ -167,7 +166,7 @@ public class SecurityConfig {
                 };
 
                 OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
-                        withTimestamp, customIssuerValidator);
+                                withTimestamp, customIssuerValidator);
                 return validator;
         }
 

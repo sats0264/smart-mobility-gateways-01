@@ -15,14 +15,18 @@ public class RouteConfig {
                                                 r -> r.path("/users/**", "/api/subscriptions/**", "/api/passes/**",
                                                                 "/api/catalog/**", "/admin/users/**")
                                                                 .uri("lb://user-mobility-pass-service"))
-                                .route("trip-management-service-route", r -> r.path("/trips/**")
-                                                .uri("lb://trip-management-service"))
-                                .route("pricing-service-route", r -> r.path("/api/pricing/**", "/admin/**")
+                                .route("trip-management-service-route",
+                                                r -> r.path("/trips/**", "/api/trips/**", "/admin/trips/**")
+                                                                .uri("lb://trip-management-service"))
+                                .route("pricing-service-route", r -> r.path("/api/pricing/**", "/admin/pricing/**")
                                                 .uri("lb://pricing-discount-service"))
-                                .route("billing-service-route", r -> r.path("/api/payments/**", "/accounts/**")
-                                                .uri("lb://billing-service"))
-                                .route("notification-service-route", r -> r.path("/notifications/**")
-                                                .uri("lb://notification-service"))
+                                .route("billing-service-route",
+                                                r -> r.path("/api/payments/**", "/accounts/**",
+                                                                "/admin/billing/**")
+                                                                .uri("lb://billing-service"))
+                                .route("notification-service-route",
+                                                r -> r.path("/notifications/**", "/admin/notifications/**")
+                                                                .uri("lb://notification-service"))
                                 .build();
         }
 }
