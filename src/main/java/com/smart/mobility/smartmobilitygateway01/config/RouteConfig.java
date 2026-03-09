@@ -18,8 +18,9 @@ public class RouteConfig {
                                 .route("trip-management-service-route",
                                                 r -> r.path("/trips/**", "/api/trips/**", "/admin/trips/**")
                                                                 .uri("lb://trip-management-service"))
-                                .route("pricing-service-route", r -> r.path("/api/pricing/**", "/admin/pricing/**")
-                                                .uri("lb://pricing-discount-service"))
+                                .route("pricing-service-route",
+                                                r -> r.path("/api/pricing/**", "/admin/pricing/**")
+                                                                .uri("lb://pricing-discount-service"))
                                 .route("billing-service-route",
                                                 r -> r.path("/api/payments/**", "/accounts/**",
                                                                 "/admin/billing/**")
@@ -27,6 +28,28 @@ public class RouteConfig {
                                 .route("notification-service-route",
                                                 r -> r.path("/notifications/**", "/admin/notifications/**")
                                                                 .uri("lb://notification-service"))
+                                // Infra Proxy Routes to solve CORS
+                                .route("rabbitmq-proxy", r -> r.path("/infra/rabbitmq/**")
+                                                .filters(f -> f.stripPrefix(2))
+                                                .uri("http://localhost:15672"))
+                                .route("prometheus-proxy", r -> r.path("/infra/prometheus/**")
+                                                .filters(f -> f.stripPrefix(2))
+                                                .uri("http://localhost:9090"))
+                                .route("zipkin-proxy", r -> r.path("/infra/zipkin/**")
+                                                .filters(f -> f.stripPrefix(2))
+                                                .uri("http://localhost:9411"))
+                                .route("grafana-proxy", r -> r.path("/infra/grafana/**")
+                                                .filters(f -> f.stripPrefix(2))
+                                                .uri("http://localhost:3000"))
+                                .route("keycloak-proxy", r -> r.path("/infra/keycloak/**")
+                                                .filters(f -> f.stripPrefix(2))
+                                                .uri("http://localhost:8080"))
+                                .route("elasticsearch-proxy", r -> r.path("/infra/elasticsearch/**")
+                                                .filters(f -> f.stripPrefix(2))
+                                                .uri("http://localhost:9200"))
+                                .route("kibana-proxy", r -> r.path("/infra/kibana/**")
+                                                .filters(f -> f.stripPrefix(2))
+                                                .uri("http://localhost:5601"))
                                 .build();
         }
 }

@@ -55,6 +55,10 @@ public class SecurityConfig {
                                                 .accessDeniedHandler(accessDeniedHandler()))
                                 .authorizeExchange(exchanges -> exchanges
                                                 // Public endpoints
+                                                .pathMatchers("/actuator/**").permitAll()
+                                                .pathMatchers("/*/actuator/**").permitAll()
+                                                .pathMatchers("/infra/**").permitAll()
+                                                .pathMatchers("/monitoring-svc/**").permitAll()
                                                 .pathMatchers("/eureka/**").permitAll()
                                                 .pathMatchers(HttpMethod.POST, "/users/register").permitAll()
 
