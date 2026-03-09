@@ -43,213 +43,232 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
-    private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
+        private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
 
-    @Bean
-    public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
-        http
-                .csrf(ServerHttpSecurity.CsrfSpec::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .exceptionHandling(exceptionHandling -> exceptionHandling
-                        .authenticationEntryPoint(authenticationEntryPoint())
-                        .accessDeniedHandler(accessDeniedHandler()))
-                .authorizeExchange(exchanges -> exchanges
-                        // Public endpoints
-                        .pathMatchers("/eureka/**").permitAll()
-                        .pathMatchers(HttpMethod.POST, "/users/register").permitAll()
+        @Bean
+        public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+                http
+                                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                                .exceptionHandling(exceptionHandling -> exceptionHandling
+                                                .authenticationEntryPoint(authenticationEntryPoint())
+                                                .accessDeniedHandler(accessDeniedHandler()))
+                                .authorizeExchange(exchanges -> exchanges
+                                                // Public endpoints
+                                                .pathMatchers("/eureka/**").permitAll()
+                                                .pathMatchers(HttpMethod.POST, "/users/register").permitAll()
 
-                        // Admin endpoints
-                        .pathMatchers("/admin/**").hasRole("ADMIN")
+//                                                // User Admin endpoints
+//                                                .pathMatchers("/admin/**").hasRole("ADMIN")
 
-                        // Specific admin-only endpoint: création de profil (backoffice)
-                        .pathMatchers(HttpMethod.POST, "/users/profile").hasRole("ADMIN")
+                                                // Admin endpoints
+                                                .pathMatchers("/admin/**").hasRole("ADMIN")
 
-                        // User endpoints
-                        .pathMatchers("/users/me").hasAnyRole("USER", "ADMIN")
-                        .pathMatchers("/users/summary/me").hasAnyRole("USER", "ADMIN")
-                        // matcher exact pour /api/passes/me (et sous-chemins ci-dessous) — autorise
-                        // aussi ADMIN
-                        .pathMatchers("/api/passes/me").hasAnyRole("USER", "ADMIN")
-                        .pathMatchers("/api/passes/me/**").hasAnyRole("USER", "ADMIN")
+                                                // Specific admin-only endpoint: création de profil (backoffice)
+                                                .pathMatchers(HttpMethod.POST, "/users/profile").hasRole("ADMIN")
 
-                        // Inter-service endpoints (Require authentication with at least USER or ADMIN)
-                        .pathMatchers("/users/**").hasAnyRole("USER", "ADMIN")
-                        .pathMatchers("/api/passes/**").hasAnyRole("USER", "ADMIN")
-                        .pathMatchers("/api/subscriptions/**").hasAnyRole("USER", "ADMIN")
-                        .pathMatchers("/trips/**").hasAnyRole("USER", "ADMIN")
-                        .pathMatchers("/api/pricing/**").hasAnyRole("USER", "ADMIN")
-                        .pathMatchers("/api/payments/**").hasAnyRole("USER", "ADMIN")
-                        .pathMatchers("/accounts/**").hasAnyRole("USER", "ADMIN")
-                        .pathMatchers("/notifications/**").hasAnyRole("USER", "ADMIN")
+                                                // User endpoints
+                                                .pathMatchers("/users/me").hasAnyRole("USER", "ADMIN")
+                                                .pathMatchers("/users/summary/me").hasAnyRole("USER", "ADMIN")
+                                                // matcher exact pour /api/passes/me (et sous-chemins ci-dessous) —
+                                                // autorise
+                                                // aussi ADMIN
+                                                .pathMatchers("/api/passes/me").hasAnyRole("USER", "ADMIN")
+                                                .pathMatchers("/api/passes/me/**").hasAnyRole("USER", "ADMIN")
 
-                        // Catalog Access: Admin can manage, Users can view
-                        .pathMatchers(HttpMethod.GET, "/api/catalog/**").hasAnyRole("USER", "ADMIN")
-                        .pathMatchers("/api/catalog/**").hasRole("ADMIN")
+                                                // Inter-service endpoints (Require authentication with at least USER or
+                                                // ADMIN)
+                                                .pathMatchers("/users/**").hasAnyRole("USER", "ADMIN")
+                                                .pathMatchers("/api/passes/**").hasAnyRole("USER", "ADMIN")
+                                                .pathMatchers("/api/subscriptions/**").hasAnyRole("USER", "ADMIN")
+                                                .pathMatchers("/trips/**").hasAnyRole("USER", "ADMIN")
+                                                .pathMatchers("/api/pricing/**").hasAnyRole("USER", "ADMIN")
+                                                .pathMatchers("/api/payments/**").hasAnyRole("USER", "ADMIN")
+                                                .pathMatchers("/accounts/**").hasAnyRole("USER", "ADMIN")
+                                                .pathMatchers("/notifications/**").hasAnyRole("USER", "ADMIN")
 
-                        // Fallback
-                        .anyExchange().authenticated())
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(grantedAuthoritiesExtractor()))); // Bean injecté
-                                                                                                     // automatiquement
+                                                // Catalog Access: Admin can manage, Users can view
+                                                .pathMatchers(HttpMethod.GET, "/api/catalog/**")
+                                                .hasAnyRole("USER", "ADMIN")
+                                                .pathMatchers("/api/catalog/**").hasRole("ADMIN")
 
-        return http.build();
-    }
+                                                // Fallback
+                                                .anyExchange().authenticated())
+                                .oauth2ResourceServer(oauth2 -> oauth2
+                                                .jwt(jwt -> jwt.jwtAuthenticationConverter(
+                                                                grantedAuthoritiesExtractor()))); // Bean injecté
+                                                                                                  // automatiquement
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-
-        // Liste complète des origines autorisées (Frontend Admin, Mobile, Keycloak,
-        // etc.)
-        configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "http://localhost:3000",
-                "http://localhost:8080",
-                "http://localhost:8765"));
-
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
-
-        configuration.setAllowedHeaders(Arrays.asList(
-                "Authorization", "Content-Type", "X-Requested-With", "Accept",
-                "Origin", "X-User-Id", "X-User-Email", "X-User-Name",
-                "Access-Control-Request-Method", "Access-Control-Request-Headers"));
-
-        // Exposer les headers pour que le frontend puisse les lire (ex: pagination)
-        configuration.setExposedHeaders(Arrays.asList(
-                "Authorization", "Content-Type", "X-Total-Count", "X-Page-Number"));
-
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
-
-    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
-    private String issuerUri;
-
-    @Bean
-    public ReactiveJwtDecoder jwtDecoder() {
-        // Force localhost:8080 as requested to bypass stale 192.168.1.6 configuration
-        String localIssuer = "http://localhost:8080/realms/smart-mobility";
-
-        NimbusReactiveJwtDecoder jwtDecoder = ReactiveJwtDecoders
-                .fromIssuerLocation(localIssuer);
-
-        OAuth2TokenValidator<Jwt> withTimestamp = JwtValidators
-                .createDefault();
-        OAuth2TokenValidator<Jwt> customIssuerValidator = token -> {
-            String iss = token.getClaimAsString("iss");
-            // Only allow localhost
-            if (iss != null && iss.contains("localhost:8080")) {
-                return OAuth2TokenValidatorResult.success();
-            }
-            return OAuth2TokenValidatorResult
-                    .failure(new OAuth2Error("invalid_issuer",
-                            "The iss claim is not valid (must be localhost:8080)", null));
-        };
-
-        OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
-                withTimestamp, customIssuerValidator);
-        jwtDecoder.setJwtValidator(validator);
-
-        return jwtDecoder;
-    }
-
-    @Bean
-    public ServerAuthenticationEntryPoint authenticationEntryPoint() {
-        return (exchange, e) -> {
-            String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
-            String tokenStatus = (authHeader != null) ? "Token present but invalid or expired" : "Token missing";
-
-            logger.error("401 Unauthorized: Path: {} | Status: {} | Reason: {}",
-                    exchange.getRequest().getPath(), tokenStatus, e.getMessage());
-
-            ServerHttpResponse response = exchange.getResponse();
-            response.setStatusCode(HttpStatus.UNAUTHORIZED);
-            String body = String.format(
-                    "{\"status\": 401, \"error\": \"Unauthorized\", \"message\": \"%s\", \"details\": \"%s\", \"path\": \"%s\"}",
-                    e.getMessage(), tokenStatus, exchange.getRequest().getPath());
-            return response.writeWith(Mono.just(response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8))));
-        };
-    }
-
-    @Bean
-    public ServerAccessDeniedHandler accessDeniedHandler() {
-        return (exchange, e) -> ReactiveSecurityContextHolder.getContext()
-                .flatMap(ctx -> {
-                    var auth = ctx.getAuthentication();
-                    if (auth == null) {
-                        return Mono.empty();
-                    }
-
-                    String roles = auth.getAuthorities().stream()
-                            .map(GrantedAuthority::getAuthority)
-                            .collect(Collectors.joining(", "));
-
-                    logger.error("403 Forbidden: Path: {} | User: {} | Roles actual: {} | Reason: {}",
-                            exchange.getRequest().getPath(), auth.getName(), roles, e.getMessage());
-
-                    ServerHttpResponse response = exchange.getResponse();
-                    response.setStatusCode(HttpStatus.FORBIDDEN);
-                    String body = String.format(
-                            "{\"status\": 403, \"error\": \"Forbidden\", \"message\": \"Access Denied\", \"details\": \"You have roles: [%s]\", \"path\": \"%s\"}",
-                            roles, exchange.getRequest().getPath());
-                    return response
-                            .writeWith(Mono.just(response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8))));
-                })
-                .switchIfEmpty(Mono.defer(() -> {
-                    logger.error("403 Forbidden (Unauthenticated): Path: {} | Reason: {}",
-                            exchange.getRequest().getPath(), e.getMessage());
-                    ServerHttpResponse response = exchange.getResponse();
-                    response.setStatusCode(HttpStatus.FORBIDDEN);
-                    String body = String.format("{\"status\": 403, \"error\": \"Forbidden\", \"message\": \"%s\"}",
-                            e.getMessage());
-                    return response
-                            .writeWith(Mono.just(response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8))));
-                }));
-    }
-
-    private Converter<Jwt, Mono<AbstractAuthenticationToken>> grantedAuthoritiesExtractor() {
-        JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(new KeycloakRoleConverter());
-        return new ReactiveJwtAuthenticationConverterAdapter(jwtAuthenticationConverter);
-    }
-
-    /**
-     * Converter to extract nested Keycloak roles into Spring Security
-     * GrantedAuthorities.
-     * Looks at realm_access.roles in the JWT.
-     */
-    static class KeycloakRoleConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
-        @Override
-        @SuppressWarnings("unchecked")
-        public Collection<GrantedAuthority> convert(Jwt jwt) {
-            Map<String, Object> realmAccess = (Map<String, Object>) jwt.getClaims().get("realm_access");
-            if (realmAccess == null || realmAccess.isEmpty()) {
-                return Collections.emptyList();
-            }
-
-            Collection<String> roles = (Collection<String>) realmAccess.get("roles");
-            if (roles == null || roles.isEmpty()) {
-                return Collections.emptyList();
-            }
-
-            return roles.stream()
-                    // Map Keycloak root roles to Spring Security format
-                    // Default keycloak roles might lack the ROLE_ prefix but in realm-export.json
-                    // we can see roles like "ROLE_USER" and "ROLE_ADMIN".
-                    // So we add "ROLE_" if it's missing just for safety or leave as is if present.
-                    .map(roleName -> {
-                        if (roleName.startsWith("ROLE_")) {
-                            return new SimpleGrantedAuthority(roleName);
-                        } else {
-                            return new SimpleGrantedAuthority("ROLE_" + roleName);
-                        }
-                    })
-                    .collect(Collectors.toList());
+                return http.build();
         }
-    }
+
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
+                CorsConfiguration configuration = new CorsConfiguration();
+
+                // Liste complète des origines autorisées (Frontend Admin, Mobile, Keycloak,
+                // etc.)
+                configuration.setAllowedOrigins(Arrays.asList(
+                                "http://localhost:5173",
+                                "http://127.0.0.1:5173",
+                                "http://localhost:3000",
+                                "http://localhost:8080",
+                                "http://localhost:8765"));
+
+                configuration.setAllowedMethods(
+                                Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
+
+                configuration.setAllowedHeaders(Arrays.asList(
+                                "Authorization", "Content-Type", "X-Requested-With", "Accept",
+                                "Origin", "X-User-Id", "X-User-Email", "X-User-Name",
+                                "Access-Control-Request-Method", "Access-Control-Request-Headers"));
+
+                // Exposer les headers pour que le frontend puisse les lire (ex: pagination)
+                configuration.setExposedHeaders(Arrays.asList(
+                                "Authorization", "Content-Type", "X-Total-Count", "X-Page-Number"));
+
+                configuration.setAllowCredentials(true);
+                configuration.setMaxAge(3600L);
+
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", configuration);
+                return source;
+        }
+
+        @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
+        private String issuerUri;
+
+        @Bean
+        public ReactiveJwtDecoder jwtDecoder() {
+                // Force localhost:8080 as requested to bypass stale 192.168.1.6 configuration
+                String localIssuer = "http://localhost:8080/realms/smart-mobility";
+
+                NimbusReactiveJwtDecoder jwtDecoder = ReactiveJwtDecoders
+                                .fromIssuerLocation(localIssuer);
+
+                OAuth2TokenValidator<Jwt> withTimestamp = JwtValidators
+                                .createDefault();
+                OAuth2TokenValidator<Jwt> validator = getJwtOAuth2TokenValidator(withTimestamp);
+                jwtDecoder.setJwtValidator(validator);
+
+                return jwtDecoder;
+        }
+
+        private OAuth2TokenValidator<Jwt> getJwtOAuth2TokenValidator(OAuth2TokenValidator<Jwt> withTimestamp) {
+                OAuth2TokenValidator<Jwt> customIssuerValidator = token -> {
+                        String iss = token.getClaimAsString("iss");
+                        // Only allow localhost
+                        if (iss != null && iss.contains("localhost:8080")) {
+                                return OAuth2TokenValidatorResult.success();
+                        }
+                        return OAuth2TokenValidatorResult
+                                        .failure(new OAuth2Error("invalid_issuer",
+                                                        "The iss claim is not valid (must be localhost:8080)", null));
+                };
+
+                OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
+                        withTimestamp, customIssuerValidator);
+                return validator;
+        }
+
+        @Bean
+        public ServerAuthenticationEntryPoint authenticationEntryPoint() {
+                return (exchange, e) -> {
+                        String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
+                        String tokenStatus = (authHeader != null) ? "Token present but invalid or expired"
+                                        : "Token missing";
+
+                        logger.error("401 Unauthorized: Path: {} | Status: {} | Reason: {}",
+                                        exchange.getRequest().getPath(), tokenStatus, e.getMessage());
+
+                        ServerHttpResponse response = exchange.getResponse();
+                        response.setStatusCode(HttpStatus.UNAUTHORIZED);
+                        String body = String.format(
+                                        "{\"status\": 401, \"error\": \"Unauthorized\", \"message\": \"%s\", \"details\": \"%s\", \"path\": \"%s\"}",
+                                        e.getMessage(), tokenStatus, exchange.getRequest().getPath());
+                        return response.writeWith(Mono
+                                        .just(response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8))));
+                };
+        }
+
+        @Bean
+        public ServerAccessDeniedHandler accessDeniedHandler() {
+                return (exchange, e) -> ReactiveSecurityContextHolder.getContext()
+                                .flatMap(ctx -> {
+                                        var auth = ctx.getAuthentication();
+                                        if (auth == null) {
+                                                return Mono.empty();
+                                        }
+
+                                        String roles = auth.getAuthorities().stream()
+                                                        .map(GrantedAuthority::getAuthority)
+                                                        .collect(Collectors.joining(", "));
+
+                                        logger.error("403 Forbidden: Path: {} | User: {} | Roles actual: {} | Reason: {}",
+                                                        exchange.getRequest().getPath(), auth.getName(), roles,
+                                                        e.getMessage());
+
+                                        ServerHttpResponse response = exchange.getResponse();
+                                        response.setStatusCode(HttpStatus.FORBIDDEN);
+                                        String body = String.format(
+                                                        "{\"status\": 403, \"error\": \"Forbidden\", \"message\": \"Access Denied\", \"details\": \"You have roles: [%s]\", \"path\": \"%s\"}",
+                                                        roles, exchange.getRequest().getPath());
+                                        return response
+                                                        .writeWith(Mono.just(response.bufferFactory()
+                                                                        .wrap(body.getBytes(StandardCharsets.UTF_8))));
+                                })
+                                .switchIfEmpty(Mono.defer(() -> {
+                                        logger.error("403 Forbidden (Unauthenticated): Path: {} | Reason: {}",
+                                                        exchange.getRequest().getPath(), e.getMessage());
+                                        ServerHttpResponse response = exchange.getResponse();
+                                        response.setStatusCode(HttpStatus.FORBIDDEN);
+                                        String body = String.format(
+                                                        "{\"status\": 403, \"error\": \"Forbidden\", \"message\": \"%s\"}",
+                                                        e.getMessage());
+                                        return response
+                                                        .writeWith(Mono.just(response.bufferFactory()
+                                                                        .wrap(body.getBytes(StandardCharsets.UTF_8))));
+                                }));
+        }
+
+        private Converter<Jwt, Mono<AbstractAuthenticationToken>> grantedAuthoritiesExtractor() {
+                JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
+                jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(new KeycloakRoleConverter());
+                return new ReactiveJwtAuthenticationConverterAdapter(jwtAuthenticationConverter);
+        }
+
+        /**
+         * Converter to extract nested Keycloak roles into Spring Security
+         * GrantedAuthorities.
+         * Looks at realm_access.roles in the JWT.
+         */
+        static class KeycloakRoleConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
+                @Override
+                @SuppressWarnings("unchecked")
+                public Collection<GrantedAuthority> convert(Jwt jwt) {
+                        Map<String, Object> realmAccess = (Map<String, Object>) jwt.getClaims().get("realm_access");
+                        if (realmAccess == null || realmAccess.isEmpty()) {
+                                return Collections.emptyList();
+                        }
+
+                        Collection<String> roles = (Collection<String>) realmAccess.get("roles");
+                        if (roles == null || roles.isEmpty()) {
+                                return Collections.emptyList();
+                        }
+
+                        return roles.stream()
+                                        // Map Keycloak root roles to Spring Security format
+                                        // Default keycloak roles might lack the ROLE_ prefix but in realm-export.json
+                                        // we can see roles like "ROLE_USER" and "ROLE_ADMIN".
+                                        // So we add "ROLE_" if it's missing just for safety or leave as is if present.
+                                        .map(roleName -> {
+                                                if (roleName.startsWith("ROLE_")) {
+                                                        return new SimpleGrantedAuthority(roleName);
+                                                } else {
+                                                        return new SimpleGrantedAuthority("ROLE_" + roleName);
+                                                }
+                                        })
+                                        .collect(Collectors.toList());
+                }
+        }
 }

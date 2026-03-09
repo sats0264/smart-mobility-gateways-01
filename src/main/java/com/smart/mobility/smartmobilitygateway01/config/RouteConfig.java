@@ -13,7 +13,7 @@ public class RouteConfig {
                 return builder.routes()
                                 .route("user-service-route",
                                                 r -> r.path("/users/**", "/api/subscriptions/**", "/api/passes/**",
-                                                                "/api/catalog/**")
+                                                                "/api/catalog/**", "/admin/users/**")
                                                                 .uri("lb://user-mobility-pass-service"))
                                 .route("trip-management-service-route", r -> r.path("/trips/**")
                                                 .uri("lb://trip-management-service"))
